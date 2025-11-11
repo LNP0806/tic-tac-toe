@@ -1,10 +1,10 @@
-import { useState } from "react";
-import "./App.css";
+import { useState } from 'react';
+import "./App.css"
 
 function Square({ value, onSquareClick, highlight }) {
   return (
     <button
-      className={`square ${highlight ? "highlight" : ""}`}
+      className={`square ${highlight ? 'highlight' : ''}`}
       onClick={onSquareClick}
     >
       {value}
@@ -15,11 +15,12 @@ function Square({ value, onSquareClick, highlight }) {
 function Board({ xIsNext, squares, onPlay }) {
   const winnerInfo = calculateWinner(squares);
   const winner = winnerInfo?.winner;
+  const winningLine = winnerInfo?.line || [];
 
   function handleClick(i) {
-    if (squares[i] || winner) return;
+    if (winner || squares[i]) return;
     const nextSquares = squares.slice();
-    nextSquares[i] = xIsNext ? "X" : "O";
+    nextSquares[i] = xIsNext ? 'X' : 'O';
     onPlay(nextSquares, i);
   }
 
@@ -28,13 +29,12 @@ function Board({ xIsNext, squares, onPlay }) {
     const rowSquares = [];
     for (let col = 0; col < 3; col++) {
       const index = row * 3 + col;
-      const highlight = winnerInfo?.line?.includes(index);
       rowSquares.push(
         <Square
           key={index}
           value={squares[index]}
           onSquareClick={() => handleClick(index)}
-          highlight={highlight}
+          highlight={winningLine.includes(index)}
         />
       );
     }
@@ -45,7 +45,21 @@ function Board({ xIsNext, squares, onPlay }) {
     );
   }
 
-  return <div>{board}</div>;
+  let status;
+  if (winner) {
+    status = 'Winner: ' + winner;
+  } else if (squares.every(Boolean)) {
+    status = 'Draw!';
+  } else {
+    status = 'Next player: ' + (xIsNext ? 'X' : 'O');
+  }
+
+  return (
+    <>
+      <div className="status">{status}</div>
+      {board}
+    </>
+  );
 }
 
 export default function Game() {
@@ -63,12 +77,10 @@ export default function Game() {
   const isDraw = !winner && currentSquares.every(Boolean);
 
   function handlePlay(nextSquares, index) {
+    const location = [Math.floor(index / 3) + 1, (index % 3) + 1];
     const nextHistory = history
       .slice(0, currentMove + 1)
-      .concat({
-        squares: nextSquares,
-        location: [Math.floor(index / 3), index % 3],
-      });
+      .concat([{ squares: nextSquares, location }]);
     setHistory(nextHistory);
     setCurrentMove(nextHistory.length - 1);
   }
@@ -88,18 +100,20 @@ export default function Game() {
   }
 
   const moves = history.map((step, move) => {
-    const location = step.location
-      ? `(${step.location[0]}, ${step.location[1]})`
-      : "";
-    const description =
-      move === 0 ? "Go to game start" : `Go to move #${move} ${location}`;
+    const location = step.location ? `(${step.location[0]}, ${step.location[1]})` : '';
+    let description;
+    if (move === currentMove) {
+      description = `You are at move #${move} ${location}`;
+      return (
+        <li key={move}>
+          <span>{description}</span>
+        </li>
+      );
+    }
+    description = move ? `Go to move #${move} ${location}` : 'Go to game start';
     return (
       <li key={move}>
-        {move === currentMove ? (
-          <span>You are at move #{move}</span>
-        ) : (
-          <button onClick={() => jumpTo(move)}>{description}</button>
-        )}
+        <button onClick={() => jumpTo(move)}>{description}</button>
       </li>
     );
   });
@@ -109,19 +123,16 @@ export default function Game() {
   return (
     <div className="game">
       <div className="game-board">
-        <strong className="title">Tic-Tac-Toe</strong>
         <Board xIsNext={xIsNext} squares={currentSquares} onPlay={handlePlay} />
       </div>
-
       <div className="game-info">
         <button onClick={() => setIsAscending(!isAscending)}>
-          Sort {isAscending ? "Descending" : "Ascending"}
+          Sort {isAscending ? 'Descending' : 'Ascending'}
         </button>
         <ol>{sortedMoves}</ol>
       </div>
 
-      {/* Overlay kết quả */}
-      {showResult && (
+       {showResult && (
         <div className="result-overlay">
           <div className="result-box">
             {winner ? (
@@ -130,7 +141,7 @@ export default function Game() {
               <h2>Draw!</h2>
             )}
             <button className="restart-btn" onClick={resetGame}>
-              Restart
+              Bắt đầu lại
             </button>
           </div>
         </div>
@@ -150,7 +161,8 @@ function calculateWinner(squares) {
     [0, 4, 8],
     [2, 4, 6],
   ];
-  for (const [a, b, c] of lines) {
+  for (let i = 0; i < lines.length; i++) {
+    const [a, b, c] = lines[i];
     if (squares[a] && squares[a] === squares[b] && squares[a] === squares[c]) {
       return { winner: squares[a], line: [a, b, c] };
     }
